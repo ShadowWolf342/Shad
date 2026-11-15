@@ -234,7 +234,7 @@ mod tests {
     fn matches_reference_bbs1_golden_fixture() {
         // Derived from DataStorage.writeToStream + MapType/IntType bytecode:
         // {"a": 42}; dictionary uses BYTE indexes, map tag=0, int tag=5.
-        let fixture = b"BBS1\x00\x01\x00\x00\x01a\x00\x00\x00\x01\x00\x05\x00\x00\x00*";
+        let fixture = b"BBS1\x00\x01\x00\x00\x01a\x00\x00\x00\x00\x01\x00\x05\x00\x00\x00*";
         let value = BbsValue::map([("a", BbsValue::Int(42))]);
         assert_eq!(decode_bbs1(fixture).unwrap(), value);
         assert_eq!(encode_bbs1(&value).unwrap(), fixture);
