@@ -12,7 +12,7 @@ A native Rust recreation of the BBS animation studio for Elyhorizon / Horizon 26
 
 ## Status
 
-This is the initial project scaffold, not a completed port. The first implementation slice mirrors BBS film/replay data structures and the looping keyframe-section rules. Native UI, rendering, camera, model, audio, import/export and recording systems are planned as separate milestones.
+This is the initial project scaffold, not a completed port. The current implementation includes BBS film/replay timeline primitives and a BBS1 binary data-tree codec with GZIP storage support. The codec is a generic ValueGroup storage layer; a full typed Film/Replay importer and real exported-film fixtures are still outstanding. Native UI, rendering, camera, model, audio, import/export and recording systems are planned as separate milestones.
 
 See [docs/PORTING.md](docs/PORTING.md) for the subsystem map and validation plan.
 
