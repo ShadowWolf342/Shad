@@ -215,7 +215,7 @@ fn write_modified_utf(out: &mut Vec<u8>, s: &str) -> Result<(), CodecError> {
     for u in s.encode_utf16() {
         if u==0 { bytes.extend_from_slice(&[0xc0,0x80]); }
         else if u<=0x7f { bytes.push(u as u8); }
-        else if u<=0x7ff { bytes.push((0xc0|((u>>6) as u8))); bytes.push((0x80|(u as u8&0x3f))); }
+        else if u<=0x7ff { bytes.push(0xc0|((u>>6) as u8)); bytes.push(0x80|(u as u8&0x3f)); }
         else { bytes.push(0xe0|((u>>12) as u8)); bytes.push(0x80|((u>>6) as u8&0x3f)); bytes.push(0x80|(u as u8&0x3f)); }
     }
     if bytes.len()>u16::MAX as usize {return Err(CodecError::LengthLimit);}
