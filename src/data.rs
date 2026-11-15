@@ -2,7 +2,8 @@
 //! The film/replay classes persist ValueGroups through this generic tree format.
 
 use std::collections::{BTreeMap, HashMap};
-use std::io::Cursor;
+use std::io::{Cursor, Read, Write};
+use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 
 const MAX_ITEMS: usize = 1_000_000;
 const MAX_DEPTH: usize = 256;
@@ -49,6 +50,7 @@ pub enum CodecError {
     LengthLimit,
     TrailingData,
     DepthLimit,
+    Compression,
 }
 impl std::fmt::Display for CodecError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -56,6 +58,22 @@ impl std::fmt::Display for CodecError {
     }
 }
 impl std::error::Error for CodecError {}
+
+/// Decode a GZIP-wrapped BBS1 stream, as used by BBS FilmManager's `.dat` files.
+pub fn decode_gzip_bbs1(bytes: &[u8]) -> Result<BbsValue, CodecError> {
+    let mut decoder = GzDecoder::new(bytes);
+    let mut raw = Vec::new();
+    decoder.read_to_end(&mut raw).map_err(|_| CodecError::Compression)?;
+    decode_bbs1(&raw)
+}
+
+/// Encode a GZIP-wrapped BBS1 stream, matching BBS CompressedDataStorage.
+pub fn encode_gzip_bbs1(root: &BbsValue) -> Result<Vec<u8>, CodecError> {
+    let raw = encode_bbs1(root)?;
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(&raw).map_err(|_| CodecError::Compression)?;
+    encoder.finish().map_err(|_| CodecError::Compression)
+}
 
 /// Decode a complete uncompressed BBS1 storage stream.
 pub fn decode_bbs1(bytes: &[u8]) -> Result<BbsValue, CodecError> {
@@ -235,6 +253,12 @@ mod tests {
         let value = BbsValue::Map(root);
         let encoded = encode_bbs1(&value).unwrap();
         assert_eq!(decode_bbs1(&encoded).unwrap(), value);
+    }
+    #[test]
+    fn gzip_storage_round_trips_like_film_manager() {
+        let value = BbsValue::map([("bbs_format", BbsValue::Int(4)), ("description", BbsValue::String("compressed film".into()))]);
+        let bytes = encode_gzip_bbs1(&value).unwrap();
+        assert_eq!(decode_gzip_bbs1(&bytes).unwrap(), value);
     }
     #[test]
     fn rejects_bad_header_and_trailing_bytes() {
