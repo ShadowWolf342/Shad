@@ -62,3 +62,25 @@ BBS's Java UI framework cannot be transplanted. Its editor workflows and data mo
 ## Current implementation
 
 The initial Rust core contains film/replay/marker containers, vector and transform primitives, BBS-style keyframe section timing, repeat-to-source mapping, ghost-tick queries, and basic playback state. It does not yet contain a BBS file parser, editor UI, camera hooks, engine integration or a packaged `.hnmod`.
+
+
+## BBS 2.4 film/replay storage findings (from reference bytecode)
+
+The BBS 2.4 film manager creates a CompressedDataStorage and uses the .dat extension. That storage wraps a DataGzipStorage around a DataFileStorage; the latter delegates to the generic BBS DataStorage codec. Therefore the on-disk file is GZIP-compressed BBS1 data, not plain JSON.
+
+The uncompressed stream layout verified from DataStorage.readFromStream/writeToStream and the value type implementations is:
+
+1. Four-byte ASCII magic BBS1.
+2. One-byte key-index width: 0 = unsigned byte, 1 = unsigned short, 2 = signed Java int (nonnegative indexes).
+3. Key dictionary count encoded using that width, followed by (index using that width, Java modified-UTF string) entries. Dictionary entry order is not guaranteed by Java's HashMap; entries must be placed by their explicit index.
+4. One recursively encoded root value. Type IDs are: map=0, list=1, string=2, byte=3, short=4, int=5, float=6, long=7, double=8, byte[]=9, short[]=10, int[]=11, long[]=12. Map/list and array lengths are big-endian 32-bit integers. Map keys are dictionary indexes. Numeric primitives are big-endian; strings use Java DataOutput modified UTF-8.
+
+The dictionary width selection in BBS is byte for fewer than 256 distinct keys, short for fewer than 65,536, otherwise int. Map and list sizes are always 32-bit integers. BBS rejects non-BBS1 headers and trailing bytes.
+
+The film root's registered value names observed in Film() are: bbs_format (default 4), camera, replays, markers, replay_categories, inventory, hp, hunger, xp_level, xp_progress, mob_recording_radius, relative_coordinates, description, created_at, and time_spent_active. Replay groups register form, anchor, props, sections, actions, animation, layers, enabled, enabled_start, enabled_end, category, label, name_tag, shadow, shadow_size, shadow_follow, shadow_offset, looping, actor, fp, relative, relative_offset, axes_preview, and axes_preview_bone. Each keyframe section stores start, duration, repeats, accumulate, and channels. These are the ValueGroup registration names, not a claim that every value is always present in a saved file.
+
+## Implemented serialization slice
+
+src/data.rs implements the BBS1 typed data tree, dictionary index widths, Java modified UTF-8, and GZIP-wrapped BBS storage. The codec preserves the tree values used by films/replays, including maps, lists, all scalar numeric types, and primitive arrays. Its stable Rust writer sorts map keys; BBS's Java writer uses HashMap iteration so byte-for-byte ordering is not a compatibility requirement. Semantic tree equality is the round-trip criterion.
+
+Tests include a small BBS1 byte fixture derived directly from the reference serialization bytecode, a nested film-like tree round trip covering all value kinds, malformed-header/trailing-data checks, and GZIP round-trip coverage. These are codec-level compatibility tests; they are not yet real film files exported by BBS. A full typed Film/Replay importer, legacy migration, keyframe-channel factory decoding, and import/export against actual user-created .dat fixtures remain outstanding.
