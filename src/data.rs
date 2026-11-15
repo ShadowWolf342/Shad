@@ -2,7 +2,7 @@
 //! The film/replay classes persist ValueGroups through this generic tree format.
 
 use std::collections::{BTreeMap, HashMap};
-use std::io::{Cursor, Read};
+use std::io::Cursor;
 
 const MAX_ITEMS: usize = 1_000_000;
 const MAX_DEPTH: usize = 256;
@@ -59,15 +59,18 @@ impl std::error::Error for CodecError {}
 
 /// Decode a complete uncompressed BBS1 storage stream.
 pub fn decode_bbs1(bytes: &[u8]) -> Result<BbsValue, CodecError> {
-    let mut r = Reader { c: Cursor::new(bytes) };
+    let mut r = Reader { c: Cursor::new(bytes), key_width: 0 };
     if r.take(4)? != b"BBS1" { return Err(CodecError::BadMagic); }
     let key_width = r.u8()?;
-    let count = r.count()?;
-    let mut keys = Vec::with_capacity(count);
+    if key_width > 2 { return Err(CodecError::UnknownType(key_width)); }
+    r.key_width = key_width;
+    let count = r.index(key_width)?;
+    if count > MAX_ITEMS { return Err(CodecError::LengthLimit); }
+    let mut keys = vec![String::new(); count];
     for _ in 0..count {
-        let _index = r.index(key_width)?;
-        let key = r.modified_utf()?;
-        keys.push(key);
+        let index = r.index(key_width)?;
+        if index >= count { return Err(CodecError::InvalidKeyIndex(index as u32)); }
+        keys[index] = r.modified_utf()?;
     }
     let root = read_value(&mut r, &keys, 0)?;
     if r.c.position() != bytes.len() as u64 { return Err(CodecError::TrailingData); }
