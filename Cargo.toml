@@ -1,0 +1,12 @@
+[package]
+name = "bbs-elyhorizon"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+description = "Native Rust recreation of BBS animation studio for Elyhorizon"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
