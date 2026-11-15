@@ -10,3 +10,4 @@ description = "Native Rust recreation of BBS animation studio for Elyhorizon"
 path = "src/lib.rs"
 
 [dependencies]
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
