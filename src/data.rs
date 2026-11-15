@@ -26,7 +26,7 @@ pub enum BbsValue {
 }
 
 impl BbsValue {
-    pub fn map(entries: impl IntoIterator<Item = (impl Into<String>, BbsValue)>) -> Self {
+    pub fn map<K: Into<String>>(entries: impl IntoIterator<Item = (K, BbsValue)>) -> Self {
         Self::Map(entries.into_iter().map(|(k, v)| (k.into(), v)).collect())
     }
     fn type_id(&self) -> u8 {
@@ -179,11 +179,11 @@ fn read_value(r: &mut Reader<'_>, keys: &[String], depth: usize) -> Result<BbsVa
 
 struct Reader<'a> { c: Cursor<&'a [u8]>, key_width: u8 }
 impl<'a> Reader<'a> {
-    fn take(&mut self, n: usize) -> Result<&'a [u8], CodecError> {
+    fn take(&mut self, n: usize) -> Result<Vec<u8>, CodecError> {
         let start = self.c.position() as usize;
         let end = start.checked_add(n).ok_or(CodecError::LengthLimit)?;
         if end > self.c.get_ref().len() { return Err(CodecError::Truncated); }
-        self.c.set_position(end as u64); Ok(&self.c.get_ref()[start..end])
+        self.c.set_position(end as u64); Ok(self.c.get_ref()[start..end].to_vec())
     }
     fn u8(&mut self) -> Result<u8, CodecError> { Ok(self.take(1)?[0]) }
     fn i16(&mut self) -> Result<i16, CodecError> { Ok(i16::from_be_bytes(self.take(2)?.try_into().unwrap())) }
